@@ -284,7 +284,14 @@ public class Controller {
             }
         }
 
-        Path gitDirectory = dataDirectory.resolve("git");
+        Path gitDirectory = Paths.get("/tmp", recipe, version, component.getName() + ".git");
+        if (Files.notExists(dataDirectory.getParent())) {
+            try {
+                Files.createDirectories(dataDirectory.getParent());
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to create data directory", e);
+            }
+        }
 
         Git componentGit = null;
         try {
@@ -301,6 +308,8 @@ public class Controller {
                             .setURI(component.getGitUrl())
                             .setDirectory(gitDirectory.toFile())
                             .setBranch(branch)
+                            .setCloneAllBranches(false)
+                            .setCloneSubmodules(false)
                             .call();
                 } catch (GitAPIException e) {
                     throw new IllegalStateException("Failed to clone repository", e);
