@@ -1,6 +1,6 @@
 package io.okd.operators.controller;
 
-import com.fasterxml.jackson.databind.json.JsonMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import io.fabric8.kubernetes.api.model.*;
 import io.fabric8.openshift.client.OpenShiftClient;
 import io.okd.operators.controller.crds.dev.tekton.v1.*;
@@ -8,7 +8,6 @@ import io.okd.operators.controller.model.ApplicationRecipe;
 import io.okd.operators.controller.model.ComponentRecipe;
 import io.okd.operators.controller.util.DirectedAcyclicGraph;
 import io.okd.operators.controller.util.GraphException;
-import io.quarkus.runtime.Startup;
 import io.quarkus.scheduler.Scheduled;
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
@@ -21,14 +20,12 @@ import org.eclipse.jgit.lib.Ref;
 import org.eclipse.jgit.lib.RepositoryCache;
 import org.eclipse.jgit.util.FS;
 import org.eclipse.microprofile.config.inject.ConfigProperty;
-import org.eclipse.microprofile.context.ManagedExecutor;
 
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
 import java.util.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -36,7 +33,7 @@ import java.util.stream.Collectors;
 public class Controller {
 
     private static final Path RECIPE_REPO = Paths.get("/tmp", "okd-build-controller", "repo");
-    private static final JsonMapper MAPPER = new JsonMapper();
+    private static final YAMLMapper MAPPER = new YAMLMapper();
 
     @Inject
     OpenShiftClient client;
