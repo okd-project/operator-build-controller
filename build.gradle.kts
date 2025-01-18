@@ -20,11 +20,13 @@ java {
 dependencies {
     implementation(enforcedPlatform(libs.quarkus.bom))
     implementation("io.quarkus:quarkus-arc")
-    implementation("io.quarkus:quarkus-openshift")
+    implementation("io.quarkus:quarkus-kubernetes")
+    implementation("io.quarkus:quarkus-container-image-jib")
     implementation("io.quarkus:quarkus-openshift-client")
     implementation("io.quarkus:quarkus-scheduler")
     implementation("io.quarkus:quarkus-jackson")
-    implementation("org.eclipse.jgit:org.eclipse.jgit:7.1.0.202411261347-r")
+    implementation("io.quarkus:quarkus-smallrye-health")
+    implementation("io.quarkiverse.jgit:quarkus-jgit:3.3.3")
 
     // Lombok
     val lombok = "org.projectlombok:lombok:1.18.36"

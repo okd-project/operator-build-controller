@@ -37,19 +37,17 @@ public class Controller {
 
     private static final Path RECIPE_REPO = Paths.get("/tmp", "okd-build-controller", "repo");
     private static final JsonMapper MAPPER = new JsonMapper();
-//    private final Thread watchThread;
-    private final AtomicBoolean running = new AtomicBoolean(false);
-//    private final String recipesDirectory;
-
-    @Inject
-    ManagedExecutor managedExecutor;
 
     @Inject
     OpenShiftClient client;
 
     @Inject
-    @ConfigProperty(name = "controller.build-repo")
+    @ConfigProperty(name = "controller.build-repo", defaultValue = "https://github.com/okd-project/okd-operator-pipeline.git")
     String buildRepo;
+
+    @Inject
+    @ConfigProperty(name = "controller.build-branch", defaultValue = "master")
+    String buildBranch;
 
     @Inject
     @ConfigProperty(name = "controller.recipes.directory", defaultValue = "recipes")
@@ -71,6 +69,7 @@ public class Controller {
         Git.cloneRepository()
                 .setURI(this.buildRepo)
                 .setDirectory(RECIPE_REPO.toFile())
+                .setBranch(this.buildBranch)
                 .call()
                 .close();
     }
@@ -287,69 +286,75 @@ public class Controller {
 
         Path gitDirectory = dataDirectory.resolve("git");
 
-        Git componentGit;
-        if (!RepositoryCache.FileKey.isGitRepository(gitDirectory.toFile(), FS.DETECTED)) {
-            if (Files.exists(gitDirectory)) {
-                try {
-                    Files.delete(gitDirectory);
-                } catch (IOException e) {
-                    throw new IllegalStateException("Failed to delete git directory", e);
-                }
-            }
-            try {
-                componentGit = Git.cloneRepository()
-                        .setURI(component.getGitUrl())
-                        .setDirectory(gitDirectory.toFile())
-                        .setBranch(branch)
-                        .call();
-            } catch (GitAPIException e) {
-                throw new IllegalStateException("Failed to clone repository", e);
-            }
-        } else {
-            try {
-                componentGit = Git.open(gitDirectory.toFile());
-
-                componentGit.pull().call();
-            } catch (IOException | GitAPIException e) {
-                throw new IllegalStateException("Failed to open git directory", e);
-            }
-        }
-
-        // Check if we need to create a new PipelineRun by polling the git repo
-        String hash = null;
-        boolean runPipeline = false;
+        Git componentGit = null;
         try {
-            List<Ref> call = componentGit.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call();
-            log.info("Branches: {}", call.stream().map(Ref::getName).toList());
-            for (Ref ref : call) {
-                if (ref.getName().equals("refs/remotes/origin/" + branch)) {
-                    hash = ref.getObjectId().getName();
-                    break;
+            if (!RepositoryCache.FileKey.isGitRepository(gitDirectory.toFile(), FS.DETECTED)) {
+                if (Files.exists(gitDirectory)) {
+                    try {
+                        Files.delete(gitDirectory);
+                    } catch (IOException e) {
+                        throw new IllegalStateException("Failed to delete git directory", e);
+                    }
+                }
+                try {
+                    componentGit = Git.cloneRepository()
+                            .setURI(component.getGitUrl())
+                            .setDirectory(gitDirectory.toFile())
+                            .setBranch(branch)
+                            .call();
+                } catch (GitAPIException e) {
+                    throw new IllegalStateException("Failed to clone repository", e);
+                }
+            } else {
+                try {
+                    componentGit = Git.open(gitDirectory.toFile());
+
+                    componentGit.pull().call();
+                } catch (IOException | GitAPIException e) {
+                    throw new IllegalStateException("Failed to open git directory", e);
                 }
             }
 
-            if (hash == null) {
-                log.error("Branch {} not found", branch);
-                throw new IllegalStateException("Branch not found");
-            }
+            // Check if we need to create a new PipelineRun by polling the git repo
+            String hash = null;
+            boolean runPipeline = false;
+            try {
+                List<Ref> call = componentGit.branchList().setListMode(ListBranchCommand.ListMode.REMOTE).call();
+                log.info("Branches: {}", call.stream().map(Ref::getName).toList());
+                for (Ref ref : call) {
+                    if (ref.getName().equals("refs/remotes/origin/" + branch)) {
+                        hash = ref.getObjectId().getName();
+                        break;
+                    }
+                }
 
-            Path hashFile = dataDirectory.resolve("hash");
+                if (hash == null) {
+                    log.error("Branch {} not found", branch);
+                    throw new IllegalStateException("Branch not found");
+                }
 
-            if (Files.notExists(hashFile)) {
-                Files.writeString(hashFile, hash);
-                runPipeline = true;
-            } else {
-                String existingHash = Files.readString(hashFile);
-                if (!existingHash.equals(hash)) {
+                Path hashFile = dataDirectory.resolve("hash");
+
+                if (Files.notExists(hashFile)) {
                     Files.writeString(hashFile, hash);
                     runPipeline = true;
+                } else {
+                    String existingHash = Files.readString(hashFile);
+                    if (!existingHash.equals(hash)) {
+                        Files.writeString(hashFile, hash);
+                        runPipeline = true;
+                    }
                 }
+            } catch (GitAPIException | IOException e) {
+                throw new IllegalStateException("Failed to get branch list", e);
             }
-        } catch (GitAPIException | IOException e) {
-            throw new IllegalStateException("Failed to get branch list", e);
-        }
 
-        return runPipeline;
+            return runPipeline;
+        } finally {
+            if (componentGit != null) {
+                componentGit.close();
+            }
+        }
     }
 
     private void buildComponent(String recipe, String version, ComponentRecipe component, String buildVersion,

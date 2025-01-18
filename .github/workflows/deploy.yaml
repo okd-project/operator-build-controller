@@ -1,0 +1,18 @@
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+      - name: Java Setup
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'graalvm'
+          java-version: '21'
+      - name: Gradle Build
+        run: ./gradlew build -Dquarkus.package.jar.enabled=false -Dquarkus.native.container-build=true -Dquarkus.native.enabled=true -Dquarkus.container-image.build=true -Dquarkus.container-image.push=true -Dquarkus.container-image.username="${{ secrets.QUAY_UN }}" -Dquarkus.container-image.password="${{ secrets.QUAY_PW }}"
