@@ -13,6 +13,7 @@ import io.fabric8.kubernetes.model.annotation.Group;
 import io.fabric8.kubernetes.model.annotation.Plural;
 import io.fabric8.kubernetes.model.annotation.Singular;
 import io.fabric8.kubernetes.model.annotation.Version;
+import io.quarkus.runtime.annotations.RegisterForReflection;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
@@ -26,6 +27,7 @@ import java.util.Map;
 @Group("tekton.dev")
 @Singular("pipelinerun")
 @Plural("pipelineruns")
+@RegisterForReflection
 public class PipelineRun implements Namespaced, HasMetadata {
 
     @JsonProperty("apiVersion")

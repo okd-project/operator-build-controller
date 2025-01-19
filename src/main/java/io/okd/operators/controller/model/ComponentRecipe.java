@@ -3,11 +3,13 @@ package io.okd.operators.controller.model;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.fabric8.kubernetes.api.model.PersistentVolumeClaimSpec;
 import io.okd.operators.controller.crds.dev.tekton.v1.PipelineRef;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 import java.util.Set;
 
 @Data
+@AllArgsConstructor
 public class ComponentRecipe {
 
     @JsonProperty
